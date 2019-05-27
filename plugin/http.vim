@@ -10,6 +10,12 @@ endif
 if !exists('g:vim_http_tempbuffer')
   let g:vim_http_tempbuffer = 0
 endif
+if !exists('g:vim_http_content_length_enabled')
+  let g:vim_http_content_length_enabled = 0
+endif
+if !exists('g:vim_http_host_enabled')
+  let g:vim_http_host_enabled = 0
+endif
 
 command! -bang Http call http#do_buffer('<bang>' == '!')
 command! -bang HttpShowCurl call http#show_curl('<bang>' == '!')

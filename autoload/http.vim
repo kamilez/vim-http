@@ -29,7 +29,8 @@ function! s:parse_request_buffer(buffer, pattern, follow) abort
         let l:request.meta.follow = 1
     end
     
-    let l:lines = getbufline(a:buffer, 0, '$')
+    let l:line = line('.')
+    let l:lines = getbufline(a:buffer, l:line, '$')
     
     if len(l:lines) < 0 
         throw 'No lines in buffer :('
@@ -202,11 +203,13 @@ function! http#clean() abort
   let l:request = s:parse_request_buffer(l:buffer, s:pre_clean_uri_line_pattern, 0)
 
   " when the http proto is > 1.0 make sure we are adding a host header
-  if index(['1.1', '2'], l:request.version) != -1 && !has_key(l:request.headers, 'Host')
-    let l:matches = matchlist(l:request.uri, '^\([^:]\+://\)\?\([^/]\+\)')
-    let l:host = l:matches[2]
-    if len(l:host)
-      call append(1, 'Host: ' . l:host)
+  if g:vim_http_host_enabled
+    if index(['1.1', '2'], l:request.version) != -1 && !has_key(l:request.headers, 'Host')
+      let l:matches = matchlist(l:request.uri, '^\([^:]\+://\)\?\([^/]\+\)')
+      let l:host = l:matches[2]
+      if len(l:host)
+        call append(1, 'Host: ' . l:host)
+      endif
     endif
   endif
 
@@ -214,24 +217,26 @@ function! http#clean() abort
     call setline('.', getline('.') . ' HTTP/1.1')
   endif
 
-  let l:content_length = len(l:request.content)
+  if g:vim_http_content_length_enabled
+    let l:content_length = len(l:request.content)
 
-  " when we have a Content-Length header and it doesn't match the actual
-  " content length
-  if l:content_length && has_key(l:request.headers, 'Content-Length')
-    if string(l:content_length) != l:request.headers['Content-Length'][-1]
-      let l:correct = input("correct Content-Length header? [Y]/N:")
-      if len(l:correct) == 0 || tolower(l:correct) != "n"
-        call remove(l:request.headers, 'Content-Length')
-        call s:remove_header('Content-Length')
+    " when we have a Content-Length header and it doesn't match the actual
+    " content length
+    if l:content_length && has_key(l:request.headers, 'Content-Length')
+      if string(l:content_length) != l:request.headers['Content-Length'][-1]
+        let l:correct = input("correct Content-Length header? [Y]/N:")
+        if len(l:correct) == 0 || tolower(l:correct) != "n"
+          call remove(l:request.headers, 'Content-Length')
+          call s:remove_header('Content-Length')
+        endif
       endif
     endif
-  endif
 
-  " when we are sending content we should add a header for the content length
-  " curl is going to do this for us anyway, but it's good to be explicit
-  if  l:content_length && !has_key(l:request.headers, 'Content-Length')
-    call append(1 + len(l:request.headers), 'Content-Length: ' . l:content_length)
+    " when we are sending content we should add a header for the content length
+    " curl is going to do this for us anyway, but it's good to be explicit
+    if  l:content_length && !has_key(l:request.headers, 'Content-Length')
+      call append(1 + len(l:request.headers), 'Content-Length: ' . l:content_length)
+    endif
   endif
 endfunction
 
